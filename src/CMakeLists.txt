@@ -38,7 +38,7 @@ target_sources(${LIB_NAME}
 )
 
 # Link internal model library.
-find_library(FCI_MODELS_LIB fcimodels REQUIRED PATHS ${LIB_EXTERNAL_DIR})
+# find_library(FCI_MODELS_LIB fcimodels REQUIRED PATHS ${LIB_EXTERNAL_DIR})
 lib_add_subdirectory(ctrl_utils INCLUDE_ALL_TARGETS)
 ctrl_utils_add_subdirectory(Eigen3)
 ctrl_utils_add_subdirectory(nlohmann_json)
@@ -47,7 +47,6 @@ target_link_libraries(${LIB_NAME}
     Eigen3::Eigen
   PRIVATE
     ctrl_utils::ctrl_utils
-    ${FCI_MODELS_LIB}
     nlohmann_json::nlohmann_json
 )
 
