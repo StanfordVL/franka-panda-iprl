@@ -17,7 +17,7 @@
 #include <tuple>      // std::tie
 #include <utility>    // std::make_pair
 
-#include <ctrl_utils/redis_client.h>
+#include "perls2_redis_client.h"
 #include <ctrl_utils/timer.h>
 #include <franka/exception.h>
 #include <franka/gripper.h>
@@ -34,10 +34,12 @@ void GripperThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMem
   const std::string KEY_GRIPPER_WIDTH     = args.key_prefix + args.key_gripper_width;
   const std::string KEY_GRIPPER_MAX_WIDTH = args.key_prefix + args.key_gripper_max_width;
   const std::string KEY_GRIPPER_STATUS    = args.key_prefix + args.key_gripper_status;
+  const std::string PASSFILE              = args.key_passfile;
 
   // Connect to Redis
-  ctrl_utils::RedisClient redis_client;
+  ctrl_utils::Perls2RedisClient redis_client;
   redis_client.connect(args.ip_redis, args.port_redis);
+  redis_client.auth(PASSFILE);
   redis_client.sync_set(KEY_GRIPPER_STATUS, GripperStatus::OFF);
 
   try {

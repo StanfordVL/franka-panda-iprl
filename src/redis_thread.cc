@@ -6,6 +6,7 @@
  *
  * Created: January 16, 2019
  * Authors: Toki Migimatsu
+ *          Rohun Kulkarni
  */
 
 #include "redis_thread.h"
@@ -15,8 +16,10 @@
 #include <iostream>   // std::cerr
 #include <memory>     // std::shared_ptr
 #include <string>     // std::string
+#include <fstream>    // std::fstream
 
-#include <ctrl_utils/redis_client.h>
+#include <cpp_redis/cpp_redis>
+#include "perls2_redis_client.h"
 #include <ctrl_utils/timer.h>
 #include <nlohmann/json.hpp>
 
@@ -40,9 +43,12 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   const std::string KEY_DRIVER_STATUS  = args.key_prefix + args.key_driver_status;
   const std::string KEY_ROBOT_TIMER    = args.key_prefix + args.key_robot_timer;
 
+  const std::string PASSFILE           = args.key_passfile;
+
   // Connect to Redis
-  ctrl_utils::RedisClient redis_client;
+  ctrl_utils::Perls2RedisClient redis_client;
   redis_client.connect(args.ip_redis, args.port_redis);
+  redis_client.auth(PASSFILE);
 
   // Set default Redis keys
   redis_client.set(KEY_CONTROL_MODE, globals->control_mode.load());
