@@ -102,16 +102,6 @@ class MotionGenerator {
 
 };
 
-void setDefaultBehavior(franka::Robot& robot) {
-  robot.setCollisionBehavior(
-      {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}}, {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}},
-      {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}},
-      {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0}}, {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0}},
-      {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}});
-  robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
-  robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
-}
-
 // This is for gcc 5.4, does not need this line with gcc6.4
 // Refer to https://stackoverflow.com/questions/8016780/undefined-reference-to-static-constexpr-char
 constexpr std::array<double, 2> MotionGenerator::kDeltaMotionFinished;

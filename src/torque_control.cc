@@ -1,11 +1,13 @@
 /**
  * torque_control.cc
- *
+ * Modified for use with perls2 
+ * 
  * Copyright 2019. All Rights Reserved.
  * Stanford IPRL
  *
  * Created: January 16, 2019
  * Authors: Toki Migimatsu
+ *          Rohun Kulkarni
  */
 
 #include "control_thread.h"
@@ -24,6 +26,7 @@ CreateTorqueController(const Args& args, const std::shared_ptr<SharedMemory>& gl
     static std::array<double, 7> tau_last_command = {{0., 0., 0., 0., 0., 0., 0.}};
     static franka::Duration t_last_command(0);
     static const auto t_start = std::chrono::steady_clock::now();
+    const franka::Duration STALE_TIME_LBOUND(10);  // max time in ms torque command may remain stale before floating.
 
     if (!*globals->runloop) {
       throw std::runtime_error("TorqueController(): SIGINT.");
@@ -63,15 +66,13 @@ CreateTorqueController(const Args& args, const std::shared_ptr<SharedMemory>& gl
         // Increment time since last command
         t_last_command += dt;
 
-        if (t_last_command > args.tau_command_timeout) {
-          // Set to floating
+        if (t_last_command > args.tau_command_timeout) { // if stale beyond upper bound, exit immediately.
+            throw CommandTimeoutException("tau_command_timeout");
+        } else if (t_last_command > STALE_TIME_LBOUND) { // if stale within lower and upper bound
+          // Set to float
           for (size_t i = 0; i < 7; i++) tau_command[i] = 0.;
           return tau_command;
         }
-      } else {
-        // Reset last command
-        tau_last_command = tau_command;
-        t_last_command = franka::Duration(0);
       }
 
       if (is_zero) {

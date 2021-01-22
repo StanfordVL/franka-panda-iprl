@@ -1,11 +1,13 @@
 /**
  * control_thread.cc
- *
+ * Modified for use with perls2 
+ * 
  * Copyright 2018. All Rights Reserved.
  * Stanford IPRL
  *
  * Created: December 20, 2018
  * Authors: Toki Migimatsu
+ *          Rohun Kulkarni
  */
 
 #include "control_thread.h"
@@ -21,6 +23,7 @@ namespace franka_driver {
 
 void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globals,
                     franka::Robot& robot, const franka::Model& model) {
+  JointMotionGenerator reset_motion_generator = JointMotionGenerator(0.1,  NEUTRAL_JOINT_POSITION);
   while (*globals->runloop) {
     try {
       ControlMode control_mode = globals->send_idle_mode ? ControlMode::IDLE
@@ -43,6 +46,18 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
           robot.control(CreateCartesianPoseController(args, globals, robot, model),
                         franka::ControllerMode::kCartesianImpedance,
                         args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
+          break;
+        case ControlMode::RESET:
+          setDefaultBehavior(robot);
+          // First move the robot to a suitable joint configuration
+
+          std::cout << "WARNING: This will move the robot! "
+                    << "Please make sure to have the user stop button at hand!" << std::endl
+                    << "Press Enter to continue..." << std::endl;
+          std::cin.ignore();
+          robot.control(reset_motion_generator);
+          std::cout << "Finished moving to initial joint configuration." << std::endl;
+          globals->send_idle_mode = true;
           break;
         default:
           throw std::runtime_error("Controller mode " + ControlModeToString(control_mode) + " not supported.");
@@ -69,7 +84,8 @@ std::stringstream& operator>>(std::stringstream& ss, ControlMode& mode) {
     {"joint_velocity", ControlMode::JOINT_VELOCITY},
     {"cartesian_pose", ControlMode::CARTESIAN_POSE},
     {"delta_cartesian_pose", ControlMode::DELTA_CARTESIAN_POSE},
-    {"cartesian_velocity", ControlMode::CARTESIAN_VELOCITY}
+    {"cartesian_velocity", ControlMode::CARTESIAN_VELOCITY},
+    {"reset", ControlMode::RESET}
   };
   if (kStringToControlMode.find(ss.str()) == kStringToControlMode.end()) {
     std::cerr << "StringToControlMode(): Unable to parse ControlMode from " << ss.str()
@@ -97,7 +113,8 @@ std::string ControlModeToString(ControlMode mode) {
     {ControlMode::JOINT_VELOCITY, "joint_velocity"},
     {ControlMode::CARTESIAN_POSE, "cartesian_pose"},
     {ControlMode::DELTA_CARTESIAN_POSE, "delta_cartesian_pose"},
-    {ControlMode::CARTESIAN_VELOCITY, "cartesian_velocity"}
+    {ControlMode::CARTESIAN_VELOCITY, "cartesian_velocity"},
+    {ControlMode::RESET, "reset"}
   };
   return kControlModeToString.at(mode);
 }
@@ -110,6 +127,16 @@ std::stringstream& operator<<(std::stringstream& ss, ControlStatus status) {
   };
   ss << kControlStatusToString.at(status);
   return ss;
+}
+
+void setDefaultBehavior(franka::Robot& robot) {
+  robot.setCollisionBehavior(
+      {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}}, {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}},
+      {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}},
+      {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0}}, {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0}},
+      {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}});
+  robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
+  robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
 }
 
 }  // namespace franka_driver
