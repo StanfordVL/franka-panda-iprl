@@ -71,7 +71,11 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
     } catch (const SwitchControllerException& e) {
       // Switch controllers
       std::cout << "Interrupted " << e.what() << " controller. Switching..." << std::endl;
+    } catch (const CommandTimeoutException& e) {
+      std::cout << "Interrupted " << e.what() << std::endl;
+      throw CommandTimeoutException(e.what());
     }
+    
   }
 }
 
