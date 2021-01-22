@@ -1,11 +1,12 @@
 ############################################################
 # Default config for Franka Panda driver
-#
+# Modified for use with perls2
 # Copyright 2018. All Rights Reserved.
 # Stanford IPRL
 #
 # Created: December 20, 2018
 # Authors: Toki Migimatsu
+#          Rohun Kulkarni
 ############################################################
 
 ####################
@@ -65,6 +66,16 @@ redis:
 
   # Use Franka gripper
   use_gripper: true
+
+##############################
+# perls2 parameters for redis#
+##############################
+perls2_redis:
+  mass_matrix:          "model::mass_matrix"
+  jacobian:             "model::jacobian"
+  gravity:              "model::gravity"
+  coriolis:             "model::coriolis"
+  password:             "/home/user/my_redis_pass.txt" # Directory containing password for Redis AUTH
 
 
 ###################
