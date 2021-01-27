@@ -1,8 +1,9 @@
 Franka Panda
 ============
-Redis driver for the Franka Panda.
+Redis driver for the Franka Panda, modified for use with perls2. 
 
 **NOTE:** The `master` branch was last tested on Ubuntu 16.04 on 11/10/2020.
+**NOTE:** This repo is specifically intended for use with perls2, for the original Stanford IPRL Franka Panda Driver see https://github.com/stanford-iprl-lab/franka-panda-iprl
 
 Installation
 ------------
@@ -43,14 +44,6 @@ This driver has been tested on Ubuntu 16.04 with C++14.
 
    Then clear the `build` folder and re-run cmake.
 
-5. If you want to use the python wrapper for this library, run cmake with the
-   following option:
-
-   ```
-   cmake .. -DFRANKA_PANDA_BUILD_PYTHON
-   make
-   ```
-
 Driver Usage
 ------------
 
@@ -59,13 +52,13 @@ Driver Usage
 
 2. Open the User stop and the robot brakes through the web interface.
 
-3. Launch a Redis server instance if one is not already running.
+3. Launch a Redis server instance if one is not already running. 
 
    ```
    redis-server
    ```
-
-3. Open a terminal and go to the driver's ```bin``` folder.
+   
+4. Open a terminal and go to the driver's ```bin``` folder.
 
    ```
    cd <franka-panda.git>/bin
@@ -82,42 +75,30 @@ Driver Usage
    trying to connect to a non-existent gripper. To prevent this from happening,
    set `use_gripper` to `false` in the YAML configuration file.
 
-Franka Panda Dynamics Library
------------------------------
+Important Notes
+---------------
+###  Control loop timing and tau_command_timeout
+Because torque control requires a high frequency and consistent timing, the
+following behavior will occur if the torque command key on redis remains stale
+for a specified period of time:
 
-In addition to the Redis driver, this repo provides C++ and Python bindings to
-the internal Franka Panda dynamics binary.
+1. If the torque command key ("franka::control::tau") remains the same for a period
+of 10ms or greater, the driver will send zero torques ("floating" or "gravity 
+compensation" mode). 
 
-### C++
-1. If the driver has already been compiled, you can use the following lines in
-   your CMakeLists.txt:
+2. If the torque command key remains the same for a period greater than the
+tau_command_timeout (specified in the driver's config file, default is 20ms), the
+driver will exit with the message 'tau_command_timeout'. 
 
-   ```
-   find_package(franka_panda REQUIRED)
-   target_link_libraries(<target> PRIVATE franka_panda::franka_panda)
-   ```
+3. If the torque command key after being stale for 10-20ms, the driver will resume
+sending torques.
 
-2. Include the following header in your source code:
+This behavior is meant to address possible latencies that may occur with the redis-server 
+or inconsistencies in the control loop. For the worst possible latencies, the robot will already
+be floating before the driver exits. 
 
-   ```
-   #include <franka_panda/franka_panda.h>
-   ```
-
-### Python
-1. Activate your Python virtual environment (e.g. `pipenv`).
-
-2. Locally install the `frankapanda` module:
-
-   ```
-   cd <franka-panda.git>
-   pip install -e .
-   ```
-
-3. Import the `frankapanda` module in your Python code:
-
-   ```
-   import frankapanda
-   ```
+If this happens, simply flush the redis database and restart the driver. If this happens very
+often, make sure no extra processes are running on the NUC. 
 
 Redis Keys
 ----------
@@ -198,148 +179,3 @@ These keys will be set by the driver at 1000Hz.
 - `franka_panda::sensor::tau`: Joint torques. \[7d array (e.g. `"0 0 0 0 0 0 0"`)\].
 - `franka_panda::sensor::dtau`: Joint torque derivatives. \[7d array (e.g. `"0 0 0 0 0 0 0"`)\].
 - `franka_panda::gripper::sensor::width`: Gripper width. \[Positive double\].
-
-### Robot model
-
-These keys will be set by the driver once at the start.
-
-- `franka_panda::model::inertia_ee`: Inertia of the attached end-effector.
-  This should be attached as a load to the end-effector when computing dynamics
-  quantities with the Franka Panda Dynamics Library. \[JSON {m: <mass: double>,
-  com: <center of mass: array[double[3]]>, I_com: <inertia at com:
-  array[double[6]]>}\].
-- `franka_panda::gripper::model::max_width`: Max width of the gripper computed
-  via homing. \[Positive double\].
-
-Dynamics Library API Quick Reference
-------------------------------------
-
-Both the `Model` class and the dynamics algorithms fall under the following namespaces:
-- C++: `franka_panda`
-- Python: `frankapanda`
-
-### Model
-
-- **dof**: Degrees of freedom.
-   - C++: `size_t Model::dof()`
-   - Python: `Model.dof: int`
-- **q**: Joint position.
-   - C++: `const Eigen::VectorXd& Model::q()`, `void Model::set_q(const Eigen::VectorXd& q)`
-   - Python: `Model.q: numpy.ndarray`
-- **dq**: Joint velocity.
-   - C++: `const Eigen::VectorXd& Model::dq()`, `void Model::set_dq(const Eigen::VectorXd& dq)`
-   - Python: `Model.dq: numpy.ndarray`
-- **m_load**: Load mass.
-   - C++: `double Model::m_load()`, `void Model::set_m_load(double m)`
-   - Python: `Model.m_load: int`
-- **com_load**: Load center of mass.
-   - C++: `const Eigen::Vector3d& Model::com_load()`, `void Model::set_com_load(const Eigen::Vector3d& com)`
-   - Python: `Model.com_load: numpy.ndarray`
-- **I_com_load**: Load inertia as a vector ([Ixx, Iyy, Izz, Ixy, Ixz, Iyz]).
-   - C++: `Eigen::Vector6d Model::I_com_load()`, `void Model::set_I_com_load(const Eigen::Vector6d& I_com)`
-   - Python: `Model.I_com_load: numpy.ndarray`
-- **I_com_load_matrix**: Load inertia as a 3x3 matrix.
-   - C++: `const Eigen::Matrix3d& Model::I_com_load_matrix()`,
-     `void Model::set_I_com_load_matrix(const Eigen::Matrix3d& I_com)`
-   - Python: `Model.I_com_load_matrix: numpy.ndarray`
-- **set_load()**: Parse the load json string output by the driver.
-   - C++: `void Model::set_load(const std::string& json_load)`
-   - Python: `Model.set_load(json_load: str)`
-- **g**: Gravity vector.
-   - C++: `const Eigen::Vector3d& Model::g()`
-   - Python: `Model.g: numpy.ndarray`
-- **inertia_compensation**: Terms added to the last 3 diagonal terms of the joint
-  space inertia matrix.
-   - C++: `const Eigen::Vector3d& Model::inertia_compensation()`,
-     `void Model::set_inertia_compensation(const Eigen::Vector3d& coeff)`
-   - Python: `Model.inertia_compensation: numpy.ndarray`
-- **stiction_coefficients**: Stiction coefficients for the last 3 joints.
-   - C++: `const Eigen::Vector3d& Model::stiction_coefficients()`,
-     `void Model::set_stiction_coefficients(const Eigen::Vector3d& coeff)`
-   - Python: `Model.stiction_coefficients: numpy.ndarray`
-- **stiction_activations**: Threshold above which stiction compensation should be
-  applied for the last 3 joints.
-   - C++: `const Eigen::Vector3d& Model::stiction_activations()`,
-     `void Model::set_stiction_activations(const Eigen::Vector3d& coeff)`
-   - Python: `Model.stiction_activations: numpy.ndarray`
-
-### Dynamics Algorithms
-
-- **Cartesian Pose**: Compute the pose of the desired link.
-   - C++: `Eigen::Isometry3d CartesianPose(const Model& model, int link = -1)`
-   - Python: `cartesian_pose(model: Model, link: int) -> numpy.ndarray`
-- **Jacobian**: Compute the basic Jacobian of the desired link.
-   - C++: `Eigen::Matrix6Xd Jacobian(const Model& model, int link = -1)`
-   - Python: `jacobian(model: Model, link: int) -> numpy.ndarray`
-- **Inertia**: Compute the joint space inertia matrix.
-   - C++: `Eigen::MatrixXd Inertia(const Model& model)`
-   - Python: `inertia(model: Model) -> numpy.ndarray`
-- **Centrifugal Coriolis**: Compute the joint space centrifugal/Coriolis forces.
-   - C++: `Eigen::VectorXd CentrifugalCoriolis(const Model& model)`
-   - Python: `centrifugal_coriolis(model: Model) -> numpy.ndarray`
-- **Gravity**: Compute the joint space gravity torque.
-   - C++: `Eigen::VectorXd Gravity(const Model& model)`
-   - Python: `gravity(model: Model) -> numpy.ndarray`
-- **Friction**: Compute the Franka Panda stiction compensation torques to be added
-  (by the user) to the input torques of the last 3 joints. Torques between
-  `stiction_activations` and `stiction_coefficients` will be clipped to
-  `stiction_coefficients`. Torques below `stiction_activations` smoothly decay
-  to 0. Torques above `stiction_coefficients` are unaffected.
-  - C++: `Eigen::VectorXd Friction(const Model& model, Eigen::Ref<const Eigen::VectorXd> tau)`
-  - Python: `friction(model: Model, tau: numpy.ndarray) -> numpy.ndarray`
-
-Examples
---------
-
-To run the example control apps, you will need to perform the following
-additional steps.
-
-1. Download and compile `spatial_dyn`.
-2. Rebuild the driver (step 3 in the **Install** section above).
-
-The apps are provided in both C++ and Python:
-
-### C++
-
-1. Build the example app:
-
-   ```
-   cd <franka-panda.git>/examples/opspace
-   mkdir build
-   cd build
-   cmake ..
-   make
-   ```
-
-2. Run the app (only use the `--sim` flag for simulation when the driver is not running):
-
-   ```
-   cd <franka-panda.git>/examples/opspace/bin
-   ./franka_panda_opspace ../../../resources/franka_panda.urdf --sim
-   ```
-
-### Python
-
-1. Activate the Python virtual environment above where you installed the
-   `frankapanda` module. An example Pipfile is provided in this repo.
-
-   ```
-   cd <franka-panda.git>
-   pipenv install --three
-   pipenv shell
-   ```
-
-2. Locally install the `spatialdyn` module (look in
-   `~/.cmake/packages/spatial_dyn` for a hint of where it's located):
-
-   ```
-   cd <spatial-dyn.git>
-   pip install -e .
-   ```
-
-3. Run the app (only use the `--sim` flag for simulation when the driver is not running):
-
-   ```
-   cd <franka-panda.git>/examples/opspace/python
-   ./franka_panda_opspace.py ../../../resources/franka_panda.urdf --sim
-   ```
