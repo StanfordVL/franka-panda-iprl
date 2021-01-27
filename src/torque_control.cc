@@ -62,6 +62,11 @@ CreateTorqueController(const Args& args, const std::shared_ptr<SharedMemory>& gl
         }
       }
 
+      if (is_zero) {
+        // Set to floating
+        return tau_command;
+      }
+
       if (is_stale) {
         // Increment time since last command
         t_last_command += dt;
@@ -73,11 +78,6 @@ CreateTorqueController(const Args& args, const std::shared_ptr<SharedMemory>& gl
           for (size_t i = 0; i < 7; i++) tau_command[i] = 0.;
           return tau_command;
         }
-      }
-
-      if (is_zero) {
-        // Set to floating
-        return tau_command;
       }
 
       // Cancel gravity from Franka Panda driver torques
