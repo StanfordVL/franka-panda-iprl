@@ -6,6 +6,7 @@
  *
  * Created: December 20, 2018
  * Authors: Toki Migimatsu
+            Rohun Kulkarni
  */
 
 #include "args.h"
@@ -105,6 +106,17 @@ Args ParseYaml(const char* filename) {
     args.key_gripper_width     = yaml["redis"]["keys"]["gripper_width"].as<std::string>();
     args.key_gripper_max_width = yaml["redis"]["keys"]["gripper_max_width"].as<std::string>();
     args.key_gripper_status    = yaml["redis"]["keys"]["gripper_status"].as<std::string>();
+
+    // config parameters specific to perls2
+    if (yaml["perls2_redis"]) {
+      std::cout << "perls2 redis found" << std::endl;
+      args.key_mass_matrix     = yaml["perls2_redis"]["mass_matrix"].as<std::string>();
+      args.key_jacobian        = yaml["perls2_redis"]["jacobian"].as<std::string>();
+      args.key_gravity         = yaml["perls2_redis"]["gravity"].as<std::string>();
+      args.key_coriolis        = yaml["perls2_redis"]["coriolis"].as<std::string>();
+      args.key_passfile        = yaml["perls2_redis"]["password"].as<std::string>();
+
+    }
 
     args.use_json              = yaml["redis"]["use_json"].as<bool>();
     args.use_gripper           = yaml["redis"]["use_gripper"].as<bool>();

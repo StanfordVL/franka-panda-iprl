@@ -60,6 +60,13 @@ struct Args {
   std::string key_gripper_max_width = "gripper::model::max_width";
   std::string key_gripper_status    = "gripper::status";
 
+  // Additional perls2 outgoing set keys
+  std::string key_mass_matrix       = "model::mass_matrix";
+  std::string key_jacobian          = "model::jacobian";
+  std::string key_gravity           = "model::gravity";
+  std::string key_coriolis          = "model::coriolis";
+  std::string key_passfile          = "/home/robot/.redis_conf/goddard_pass.txt";
+
   bool use_json = false;
   bool use_gripper = true;
 

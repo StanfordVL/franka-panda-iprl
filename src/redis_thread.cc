@@ -6,6 +6,7 @@
  *
  * Created: January 16, 2019
  * Authors: Toki Migimatsu
+ *          Rohun Kulkarni
  */
 
 #include "redis_thread.h"
@@ -15,8 +16,10 @@
 #include <iostream>   // std::cerr
 #include <memory>     // std::shared_ptr
 #include <string>     // std::string
+#include <fstream>    // std::fstream
 
-#include <ctrl_utils/redis_client.h>
+#include <cpp_redis/cpp_redis>
+#include "perls2_redis_client.h"
 #include <ctrl_utils/timer.h>
 #include <nlohmann/json.hpp>
 
@@ -40,9 +43,17 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   const std::string KEY_DRIVER_STATUS  = args.key_prefix + args.key_driver_status;
   const std::string KEY_ROBOT_TIMER    = args.key_prefix + args.key_robot_timer;
 
+  const std::string PASSFILE           = args.key_passfile;
+  //perls2 keys
+  const std::string KEY_MASS_MATRIX    = args.key_prefix + args.key_mass_matrix;
+  const std::string KEY_JACOBIAN       = args.key_prefix + args.key_jacobian;
+  const std::string KEY_GRAVITY        = args.key_prefix + args.key_gravity;
+  const std::string KEY_CORIOLIS       = args.key_prefix + args.key_coriolis;
+  
   // Connect to Redis
-  ctrl_utils::RedisClient redis_client;
+  ctrl_utils::Perls2RedisClient redis_client;
   redis_client.connect(args.ip_redis, args.port_redis);
+  redis_client.auth(PASSFILE);
 
   // Set default Redis keys
   redis_client.set(KEY_CONTROL_MODE, globals->control_mode.load());
@@ -65,7 +76,10 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   json_ee["I_com_flat"] = std::array<double, 6>{state.I_ee[0], state.I_ee[4], state.I_ee[8],
                                                 state.I_ee[1], state.I_ee[2], state.I_ee[5]};
   redis_client.set(KEY_INERTIA_EE, json_ee.dump());
-
+  redis_client.set(KEY_JACOBIAN,       ArrayToString(model->zeroJacobian(franka::Frame::kEndEffector, state)));
+  redis_client.set(KEY_MASS_MATRIX,    ArrayToString(model->mass(state)));
+  redis_client.set(KEY_GRAVITY,        ArrayToString(model->gravity(state)));
+  redis_client.set(KEY_CORIOLIS,       ArrayToString(model->coriolis(state)));;
   redis_client.sync_commit();
 
   // Set driver to running
@@ -105,6 +119,12 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
       redis_client.set(KEY_TAU,  ArrayToString(globals->tau.load(),  args.use_json));
       redis_client.set(KEY_DTAU, ArrayToString(globals->dtau.load(), args.use_json));
       redis_client.set(KEY_POSE, ArrayToString(model->pose(franka::Frame::kEndEffector, state)));
+
+      redis_client.set(KEY_JACOBIAN,       ArrayToString(model->zeroJacobian(franka::Frame::kEndEffector, state)));
+      redis_client.set(KEY_MASS_MATRIX,    ArrayToString(model->mass(state)));
+      redis_client.set(KEY_GRAVITY,        ArrayToString(model->gravity(state)));
+      redis_client.set(KEY_CORIOLIS,       ArrayToString(model->coriolis(state)));;
+
       redis_client.set(KEY_ROBOT_TIMER, globals->time.load());
       redis_client.set(KEY_CONTROL_STATUS, globals->control_status.load());
       redis_client.commit();

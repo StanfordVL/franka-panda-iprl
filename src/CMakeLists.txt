@@ -73,6 +73,7 @@ target_sources(${BIN_NAME}
     control_thread.cc
     gripper_thread.cc
     redis_thread.cc
+    reset_control.cc
     torque_control.cc
 )
 
