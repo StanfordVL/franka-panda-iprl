@@ -50,7 +50,7 @@ Driver Usage
 1. Open the robot interface by connecting to the ip address of the controller in
    your web browser (e.g. ```172.16.0.2```).
 
-2. Open the User stop and the robot brakes through the web interface.
+2. Open the User stop and the robot brakes through the web interface. (The robot lights should be Blue)
 
 3. Launch a Redis server instance if one is not already running. 
 
@@ -74,6 +74,36 @@ Driver Usage
    driver threads gracefully. If the driver doesn't terminate, it may be stuck
    trying to connect to a non-existent gripper. To prevent this from happening,
    set `use_gripper` to `false` in the YAML configuration file.
+   
+Test the installation
+---------------------
+1. Follow the instructions below ("Driver Usage") to setup the driver. 
+
+2. Open redis-cli in another terminal
+   
+3. Reset the robot to a neutral position using the redis-cli terminal. Make sure user stop is in hand.
+```
+set franka_panda::control::mode reset
+```
+
+4. Confirm the reset in the driver terminal window by pressing Enter
+
+5. Set the robot to gravity compensation mode in the redis-cli terminal
+```
+set franka_panda::control::mode floating
+```
+
+6. The robot should now be in Gravity Compensation mode, and easily movable by hand.
+
+7. Reset the robot as in step 3.
+
+8. Set the robot to idle mode with the redis-cli-terminal:
+```
+set franka_panda::control::mode idle
+```
+9. Exit the driver with Ctrl + C. 
+
+10. Engage the User stop so that the robot lights are now white. 
 
 Important Notes
 ---------------
@@ -99,6 +129,15 @@ be floating before the driver exits.
 
 If this happens, simply flush the redis database and restart the driver. If this happens very
 often, make sure no extra processes are running on the NUC. 
+
+### Reset Behavior
+When a robot reset is commanded, the driver will ask for confirmation from the user prior to executing the reset.
+Simply press Enter on the driver terminal to initiate the reset. 
+
+During reset commands the robot will use a joint space controller to return to a neutral position. 
+This controller does not do any collision checking, so it is important that the user monitor the robot state and 
+have the user-stop ready. 
+
 
 Redis Keys
 ----------
