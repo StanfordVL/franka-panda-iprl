@@ -29,6 +29,13 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
       ControlMode control_mode = globals->send_idle_mode ? ControlMode::IDLE
                                                          : globals->control_mode.load();
       if (control_mode == ControlMode::IDLE) {
+        // Update state of robot. 
+        franka::RobotState state = robot.readOnce();
+        // Set sensor values
+        globals->q    = state.q;
+        globals->dq   = state.dq;
+        globals->tau  = state.tau_J;
+        globals->dtau = state.dtau_J;
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         continue;
       }
@@ -36,17 +43,6 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
       std::cout << "Executing " << ControlModeToString(control_mode) << " controller." << std::endl;
       globals->control_status = ControlStatus::RUNNING;
       switch (control_mode) {
-        case ControlMode::FLOATING:
-        case ControlMode::TORQUE:
-          robot.control(CreateTorqueController(args, globals, model),
-                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
-          break;
-        case ControlMode::CARTESIAN_POSE:
-        case ControlMode::DELTA_CARTESIAN_POSE:
-          robot.control(CreateCartesianPoseController(args, globals, robot, model),
-                        franka::ControllerMode::kCartesianImpedance,
-                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
-          break;
         case ControlMode::RESET:
           setDefaultBehavior(robot);
           // First move the robot to a suitable joint configuration
@@ -57,7 +53,20 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
           std::cin.ignore();
           robot.control(reset_motion_generator);
           std::cout << "Finished moving to initial joint configuration." << std::endl;
+
           globals->send_idle_mode = true;
+          //globals->control_mode = ControlMode::FLOATING;
+          break;
+        case ControlMode::FLOATING:
+        case ControlMode::TORQUE:
+          robot.control(CreateTorqueController(args, globals, model),
+                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
+          break;
+        case ControlMode::CARTESIAN_POSE:
+        case ControlMode::DELTA_CARTESIAN_POSE:
+          robot.control(CreateCartesianPoseController(args, globals, robot, model),
+                        franka::ControllerMode::kCartesianImpedance,
+                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
           break;
         default:
           throw std::runtime_error("Controller mode " + ControlModeToString(control_mode) + " not supported.");
