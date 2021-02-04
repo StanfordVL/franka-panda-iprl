@@ -52,10 +52,10 @@ Driver Usage
 
 2. Open the User stop and the robot brakes through the web interface. (The robot lights should be Blue)
 
-3. Launch a Redis server instance if one is not already running. 
+3. Launch a secured Redis server instance if one is not already running. 
 
    ```
-   redis-server
+   redis-server redis.conf
    ```
    
 4. Open a terminal and go to the driver's ```bin``` folder.
