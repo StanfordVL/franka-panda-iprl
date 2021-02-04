@@ -115,6 +115,7 @@ Args ParseYaml(const char* filename) {
       args.key_gravity         = yaml["perls2_redis"]["gravity"].as<std::string>();
       args.key_coriolis        = yaml["perls2_redis"]["coriolis"].as<std::string>();
       args.key_passfile        = yaml["perls2_redis"]["password"].as<std::string>();
+      args.key_reset_q         = yaml["perls2_redis"]["reset_q_key"].as<std::string>();
 
     }
 

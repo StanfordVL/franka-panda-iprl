@@ -23,7 +23,7 @@ namespace franka_driver {
 
 void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globals,
                     franka::Robot& robot, const franka::Model& model) {
-  JointMotionGenerator reset_motion_generator = JointMotionGenerator(0.1,  NEUTRAL_JOINT_POSITION);
+
   while (*globals->runloop) {
     try {
       ControlMode control_mode = globals->send_idle_mode ? ControlMode::IDLE
@@ -43,7 +43,20 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
       std::cout << "Executing " << ControlModeToString(control_mode) << " controller." << std::endl;
       globals->control_status = ControlStatus::RUNNING;
       switch (control_mode) {
+        case ControlMode::FLOATING:
+        case ControlMode::TORQUE:
+          robot.control(CreateTorqueController(args, globals, model),
+                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
+          break;
+        case ControlMode::CARTESIAN_POSE:
+        case ControlMode::DELTA_CARTESIAN_POSE:
+          robot.control(CreateCartesianPoseController(args, globals, robot, model),
+                        franka::ControllerMode::kCartesianImpedance,
+                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
+          break;
         case ControlMode::RESET:
+          {
+          JointMotionGenerator reset_motion_generator = JointMotionGenerator(0.1,  globals->reset_q);
           setDefaultBehavior(robot);
           // First move the robot to a suitable joint configuration
 
@@ -57,17 +70,7 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
           globals->send_idle_mode = true;
           //globals->control_mode = ControlMode::FLOATING;
           break;
-        case ControlMode::FLOATING:
-        case ControlMode::TORQUE:
-          robot.control(CreateTorqueController(args, globals, model),
-                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
-          break;
-        case ControlMode::CARTESIAN_POSE:
-        case ControlMode::DELTA_CARTESIAN_POSE:
-          robot.control(CreateCartesianPoseController(args, globals, robot, model),
-                        franka::ControllerMode::kCartesianImpedance,
-                        args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
-          break;
+          }
         default:
           throw std::runtime_error("Controller mode " + ControlModeToString(control_mode) + " not supported.");
       }

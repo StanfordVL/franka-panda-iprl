@@ -76,7 +76,7 @@ perls2_redis:
   gravity:              "model::gravity"
   coriolis:             "model::coriolis"
   password:             "/home/user/my_redis_pass.txt" # Directory containing password for Redis AUTH
-
+  reset_q_key:          "control::reset_q"
 
 ###################
 # Load parameters #

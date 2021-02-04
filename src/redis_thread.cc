@@ -49,6 +49,8 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   const std::string KEY_JACOBIAN       = args.key_prefix + args.key_jacobian;
   const std::string KEY_GRAVITY        = args.key_prefix + args.key_gravity;
   const std::string KEY_CORIOLIS       = args.key_prefix + args.key_coriolis;
+  const std::string KEY_RESET_Q        = args.key_prefix + args.key_reset_q;
+
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
   std::chrono::system_clock::duration dtn = tp.time_since_epoch();
 
@@ -81,7 +83,9 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   redis_client.set(KEY_JACOBIAN,       ArrayToString(model->zeroJacobian(franka::Frame::kEndEffector, state)));
   redis_client.set(KEY_MASS_MATRIX,    ArrayToString(model->mass(state)));
   redis_client.set(KEY_GRAVITY,        ArrayToString(model->gravity(state)));
-  redis_client.set(KEY_CORIOLIS,       ArrayToString(model->coriolis(state)));;
+  redis_client.set(KEY_CORIOLIS,       ArrayToString(model->coriolis(state)));
+  redis_client.set(KEY_RESET_Q,        ArrayToString(args.reset_q, args.use_json));
+
   redis_client.sync_commit();
 
   // Set driver to running
@@ -106,6 +110,8 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
           key_command = KEY_POSE_COMMAND;
           break;
         case ControlMode::RESET:
+          key_command = KEY_RESET_Q;
+          break;
         case ControlMode::FLOATING:
         case ControlMode::TORQUE:
           key_command = KEY_TAU_COMMAND;
@@ -139,7 +145,9 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
         case ControlMode::DELTA_CARTESIAN_POSE:
           globals->pose_command = StringToTransform(future_command.get(), args.use_json);
           break;
-        case ControlMode::RESET:          
+        case ControlMode::RESET:
+          globals->reset_q = StringToArray<7>(future_command.get(), args.use_json);
+          break;          
         case ControlMode::FLOATING:
         case ControlMode::TORQUE:
           globals->tau_command = StringToArray<7>(future_command.get(), args.use_json);
