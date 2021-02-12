@@ -170,13 +170,20 @@ Args ParseYaml(const char* filename) {
 Args ParseArgs(int argc, char* argv[]) {
   if (argc < 2) {
     std::cout << "Usage:" << std::endl
-              << "\t./franka_panda_driver ../resources/default.yaml" << std::endl;
+              << "\t./franka_panda_driver ../resources/default.yaml" << std::endl
+              << "\t./franka_panda_driver <config yaml> <redis_passfile>" << std::endl;
     exit(0);
   }
 
   int i = 1;
   Args args = ParseYaml(argv[i]);
-
+  if (argc == 3){
+    std::string redis_passfile = argv[2];
+    std::cout << "overwriting redis_passfile path with " << std::endl
+              << redis_passfile << std::endl;
+    args.key_passfile = redis_passfile;
+    i++;
+  }
   // Parse remaining command line arguments
   std::string arg;
   for ( ; i < argc; i++) {
