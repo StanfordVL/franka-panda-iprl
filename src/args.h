@@ -14,6 +14,7 @@
 #include <array>    // std::array
 #include <string>   // std::string
 #include <ostream>  // std::ostream
+#include <cmath>    // M_PI 
 
 #include <franka/robot.h>
 
@@ -66,6 +67,7 @@ struct Args {
   std::string key_gravity           = "model::gravity";
   std::string key_coriolis          = "model::coriolis";
   std::string key_passfile          = "/home/robot/.redis_conf/goddard_pass.txt";
+  std::string key_reset_q           = "control::reset_q";
 
   bool use_json = false;
   bool use_gripper = true;
@@ -83,6 +85,8 @@ struct Args {
   bool compensate_gravity = true;
   franka::Duration tau_command_timeout = franka::Duration(100);  // [ms]
 
+  // Reset neutral joint position 
+  std::array<double, 7> reset_q = {{0., -M_PI/6., 0., -5.*M_PI/6., 0., 2.*M_PI/3., 0.}};
   // Joint space control parameters
   std::array<double, 7> K_joint = {{3000., 3000., 3000., 2500., 2500., 2000., 2000.}};
 

@@ -14,7 +14,6 @@
 #include <atomic>    // std::atomic
 #include <array>     // std::array
 #include <csignal>   // std::sig_atomic_t
-
 #include "control_thread.h"
 
 namespace franka_driver {
@@ -27,6 +26,7 @@ struct SharedMemory {
   std::atomic<std::array<double, 7>> dq   = {{{0.}}};
   std::atomic<std::array<double, 7>> tau  = {{{0.}}};
   std::atomic<std::array<double, 7>> dtau = {{{0.}}};
+  std::atomic<std::array<double, 7>> reset_q = {{{0.}}};
 
   std::atomic<double> time = {0.};
 
