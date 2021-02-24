@@ -17,7 +17,7 @@
 #include <memory>     // std::shared_ptr
 #include <string>     // std::string
 #include <fstream>    // std::fstream
-
+#include <chrono>
 #include <cpp_redis/cpp_redis>
 #include "perls2_redis_client.h"
 #include <ctrl_utils/timer.h>
@@ -49,7 +49,11 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   const std::string KEY_JACOBIAN       = args.key_prefix + args.key_jacobian;
   const std::string KEY_GRAVITY        = args.key_prefix + args.key_gravity;
   const std::string KEY_CORIOLIS       = args.key_prefix + args.key_coriolis;
-  
+  const std::string KEY_RESET_Q        = args.key_prefix + args.key_reset_q;
+
+  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+  std::chrono::system_clock::duration dtn = tp.time_since_epoch();
+
   // Connect to Redis
   ctrl_utils::Perls2RedisClient redis_client;
   redis_client.connect(args.ip_redis, args.port_redis);
@@ -62,7 +66,7 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   // redis_client.set(KEY_M_LOAD,     std::to_string(globals->m_load.load()));
   // redis_client.set(KEY_COM_LOAD,   ArrayToString(globals->com_load.load(),   args.use_json));
   // redis_client.set(KEY_I_COM_LOAD, ArrayToString(globals->I_com_load.load(), args.use_json));
-  redis_client.set(KEY_ROBOT_TIMER, globals->time.load());
+  redis_client.set(KEY_ROBOT_TIMER, std::to_string(dtn.count()));
 
   // Set initial state
   redis_client.set(KEY_Q,    ArrayToString(state.q,    args.use_json));
@@ -79,7 +83,9 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
   redis_client.set(KEY_JACOBIAN,       ArrayToString(model->zeroJacobian(franka::Frame::kEndEffector, state)));
   redis_client.set(KEY_MASS_MATRIX,    ArrayToString(model->mass(state)));
   redis_client.set(KEY_GRAVITY,        ArrayToString(model->gravity(state)));
-  redis_client.set(KEY_CORIOLIS,       ArrayToString(model->coriolis(state)));;
+  redis_client.set(KEY_CORIOLIS,       ArrayToString(model->coriolis(state)));
+  redis_client.set(KEY_RESET_Q,        ArrayToString(args.reset_q, args.use_json));
+
   redis_client.sync_commit();
 
   // Set driver to running
@@ -103,6 +109,9 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
         case ControlMode::DELTA_CARTESIAN_POSE:
           key_command = KEY_POSE_COMMAND;
           break;
+        case ControlMode::RESET:
+          key_command = KEY_RESET_Q;
+          break;
         case ControlMode::FLOATING:
         case ControlMode::TORQUE:
           key_command = KEY_TAU_COMMAND;
@@ -111,7 +120,8 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
           break;
       };
       std::future<std::string> future_command = redis_client.get<std::string>(key_command);
-
+      tp = std::chrono::system_clock::now();
+      dtn = tp.time_since_epoch();
       // Set Redis values
       state.q = globals->q;
       redis_client.set(KEY_Q,    ArrayToString(state.q,              args.use_json));
@@ -125,7 +135,7 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
       redis_client.set(KEY_GRAVITY,        ArrayToString(model->gravity(state)));
       redis_client.set(KEY_CORIOLIS,       ArrayToString(model->coriolis(state)));;
 
-      redis_client.set(KEY_ROBOT_TIMER, globals->time.load());
+      redis_client.set(KEY_ROBOT_TIMER, std::to_string(dtn.count()));
       redis_client.set(KEY_CONTROL_STATUS, globals->control_status.load());
       redis_client.commit();
 
@@ -135,10 +145,14 @@ void RedisThread(std::shared_ptr<const Args> p_args, std::shared_ptr<SharedMemor
         case ControlMode::DELTA_CARTESIAN_POSE:
           globals->pose_command = StringToTransform(future_command.get(), args.use_json);
           break;
+        case ControlMode::RESET:
+          globals->reset_q = StringToArray<7>(future_command.get(), args.use_json);
+          break;          
         case ControlMode::FLOATING:
         case ControlMode::TORQUE:
           globals->tau_command = StringToArray<7>(future_command.get(), args.use_json);
           break;
+
         default:
           break;
       }

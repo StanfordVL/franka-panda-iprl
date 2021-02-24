@@ -23,12 +23,19 @@ namespace franka_driver {
 
 void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globals,
                     franka::Robot& robot, const franka::Model& model) {
-  JointMotionGenerator reset_motion_generator = JointMotionGenerator(0.1,  NEUTRAL_JOINT_POSITION);
+
   while (*globals->runloop) {
     try {
       ControlMode control_mode = globals->send_idle_mode ? ControlMode::IDLE
                                                          : globals->control_mode.load();
       if (control_mode == ControlMode::IDLE) {
+        // Update state of robot. 
+        franka::RobotState state = robot.readOnce();
+        // Set sensor values
+        globals->q    = state.q;
+        globals->dq   = state.dq;
+        globals->tau  = state.tau_J;
+        globals->dtau = state.dtau_J;
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         continue;
       }
@@ -48,6 +55,8 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
                         args.limit_rate, args.lowpass_freq_cutoff);  // Blocking
           break;
         case ControlMode::RESET:
+          {
+          JointMotionGenerator reset_motion_generator = JointMotionGenerator(0.1,  globals->reset_q);
           setDefaultBehavior(robot);
           // First move the robot to a suitable joint configuration
 
@@ -57,8 +66,11 @@ void RunControlLoop(const Args& args, const std::shared_ptr<SharedMemory>& globa
           std::cin.ignore();
           robot.control(reset_motion_generator);
           std::cout << "Finished moving to initial joint configuration." << std::endl;
+
           globals->send_idle_mode = true;
+          //globals->control_mode = ControlMode::FLOATING;
           break;
+          }
         default:
           throw std::runtime_error("Controller mode " + ControlModeToString(control_mode) + " not supported.");
       }
